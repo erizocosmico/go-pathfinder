@@ -138,7 +138,7 @@ func (m *Map) Neighbours(p Point, diagonalMoves bool) []Point {
 // from a point to another will be allowed.
 func (m *Map) Path(start, goal Point, diagonalMoves bool) ([]Point, error) {
 	closedList := make(map[Point]struct{})
-	openList := map[Point]struct{}{start: struct{}{}}
+	openList := map[Point]struct{}{start: {}}
 	fscore := map[Point]float64{start: 0}
 	gscore := map[Point]float64{start: 0}
 	cameFrom := make(map[Point]Point)
