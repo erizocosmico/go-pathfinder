@@ -29,15 +29,15 @@ func (p Point) Distance(other Point) float64 {
 		math.Pow(float64(other.Y)-float64(p.Y), 2)
 }
 
-// Points implements the Shape interface. It returns just the point itself.
-func (p Point) Points() []Point {
-	return []Point{p}
+// Contains implements the Shape interface.
+func (p Point) Contains(other Point) bool {
+	return p.Equal(other)
 }
 
 // Shape in a 2D space.
 type Shape interface {
-	// Points returns all points the shape is occupying.
-	Points() []Point
+	// Contains returns whether the point is contained in the shape.
+	Contains(Point) bool
 }
 
 type square struct {
@@ -50,36 +50,49 @@ func Square(origin Point, size uint64) Shape {
 	return &square{origin, size}
 }
 
-func (s *square) Points() []Point {
-	var result = make([]Point, s.size*s.size)
-	for i := uint64(0); i < s.size; i++ {
-		for j := uint64(0); j < s.size; j++ {
-			result[i*s.size+j] = NewPoint(s.origin.X+j, s.origin.Y+i)
-		}
-	}
-	return result
+func (s *square) Contains(p Point) bool {
+	x, y := s.origin.X, s.origin.Y
+	maxx, maxy := s.origin.X+s.size, s.origin.Y+s.size
+	return p.X >= x && p.X <= maxx && p.Y >= y && p.Y <= maxy
 }
 
 // Map is a 2D map.
 type Map struct {
-	obstacles    map[Point]struct{}
+	cache        map[Point]bool
+	obstacles    []Shape
 	xsize, ysize uint64
 }
 
 // NewMap creates a map with the given width and height.
 func NewMap(xsize, ysize uint64) *Map {
 	return &Map{
-		obstacles: make(map[Point]struct{}),
-		xsize:     xsize,
-		ysize:     ysize,
+		cache: make(map[Point]bool),
+		xsize: xsize,
+		ysize: ysize,
 	}
 }
 
 // AddObstacle adds as an obstacle the points of the given shape.
 func (m *Map) AddObstacle(o Shape) {
-	for _, p := range o.Points() {
-		m.obstacles[p] = struct{}{}
+	m.obstacles = append(m.obstacles, o)
+}
+
+// IsObstacle returns whether the given point is part of an obstacle.
+func (m *Map) IsObstacle(p Point) bool {
+	if is, ok := m.cache[p]; ok {
+		return is
 	}
+
+	var occupied bool
+	for _, o := range m.obstacles {
+		if o.Contains(p) {
+			occupied = true
+			break
+		}
+	}
+
+	m.cache[p] = occupied
+	return occupied
 }
 
 // ErrCantReachGoal is returned when the goal could not be found.
@@ -110,7 +123,7 @@ func (m *Map) Neighbours(p Point, diagonalMoves bool) []Point {
 
 		newp := NewPoint(newx, newy)
 
-		if _, ok := m.obstacles[newp]; ok {
+		if m.IsObstacle(newp) {
 			continue
 		}
 
